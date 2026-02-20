@@ -1,7 +1,25 @@
 import puppeteer from 'puppeteer';
-import { Item, Monster } from './types';
+import { Item, Monster } from '../../types';
+import logger from './logger';
 
 class Crawler {
+  loadMonsterPages: number;
+  loadMonsterRows: number;
+  loadItemPages: number;
+  loadItemRows: number;
+
+  constructor(options: Partial<{
+    loadMonsterPages: number,
+    loadItemPages: number,
+    loadMonsterRows: number,
+    loadItemRows: number,
+  }> = {}) {
+    this.loadMonsterPages = options.loadMonsterPages ?? 0;
+    this.loadItemPages = options.loadItemPages ?? 0;
+    this.loadMonsterRows = options.loadMonsterRows ?? 1;
+    this.loadItemRows = options.loadItemRows ?? 1;
+  }
+
   async scrapingMonster(): Promise<Map<string, Monster>> {
     let id: string = '';
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/monster?page=';
@@ -9,19 +27,19 @@ class Crawler {
     const page = await browser.newPage();
     const monster: Map<string, Monster> = new Map();
 
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= this.loadMonsterPages; i++) {
       await page.goto(url + i);
 
       await page
         .waitForSelector('div.has-option.tablerow', { timeout: 30000 })
         .catch(() => {
-          console.error('Selector not found within timeout');
+          logger.error('Selector not found within timeout');
         });
 
       const rows = await page.$$('div.has-option.tablerow');
 
-      for (let j = 0; j < rows.length; j++) {
-        console.log(`Monster page ${i}, row ${j} loading...`);
+      for (let j = 0; j < Math.min(rows.length, this.loadMonsterRows); j++) {
+        logger.info(`Monster page ${i}, row ${j} loading...`);
         const row = rows[j];
         const button = await row.$('button.btn-item');
         let name: string = '';
@@ -55,26 +73,28 @@ class Crawler {
               );
             });
           await button.asLocator().click();
-          await page.waitForNavigation({ timeout: 30000 }).catch(() => {
-            console.error('Navigation timeout after clicking the button');
-          });
-          link = page.url();
-          id = link.split('detail=monster')[1];
           await page
             .waitForSelector('div.gameinfo-detail__title>button.btn-close', {
               timeout: 5000,
             })
             .catch(() => {
-              console.log('Selector not found within timeout');
+              logger.info('Detail panel not found within timeout');
             });
+          link = page.url();
+          id = link.split('detail=monster')[1];
           const closeButton = await page.$(
             'div.gameinfo-detail__title>button.btn-close'
           );
           if (closeButton) {
             await closeButton.asLocator().click();
-            await page.waitForNavigation({ timeout: 5000 }).catch(() => {
-              console.error('Navigation timeout after clicking the button');
-            });
+            await page
+              .waitForSelector('div.gameinfo-detail__title>button.btn-close', {
+                hidden: true,
+                timeout: 5000,
+              })
+              .catch(() => {
+                logger.info('Detail panel did not close within timeout');
+              });
           }
         }
         monster.set(id, { id, name, dropItems, imageUrl, link });
@@ -92,19 +112,19 @@ class Crawler {
     const page = await browser.newPage();
     const item: Map<string, Item> = new Map();
 
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 1; i <= this.loadItemPages; i++) {
       await page.goto(url + i);
 
       await page
         .waitForSelector('div.has-option.tablerow', { timeout: 30000 })
         .catch(() => {
-          console.error('Selector not found within timeout');
+          logger.error('Selector not found within timeout');
         });
 
       const rows = await page.$$('div.has-option.tablerow');
 
-      for (let j = 0; j < rows.length; j++) {
-        console.log(`Item page ${i}, row ${j} loading...`);
+      for (let j = 0; j < Math.min(rows.length, this.loadItemRows); j++) {
+        logger.info(`Item page ${i}, row ${j} loading...`);
         const row = rows[j];
         const button = await row.$('button.btn-item');
         let name: string = '';
@@ -130,27 +150,31 @@ class Crawler {
                 node[0]?.evaluate((img) => img.getAttribute('src') ?? '') ?? ''
               );
             });
+          // logger.info(`Item name: ${name}, description: ${description}, imageUrl: ${imageUrl}`);
           await button.asLocator().click();
-          await page.waitForNavigation({ timeout: 30000 }).catch(() => {
-            console.error('Navigation timeout after clicking the button');
-          });
-          link = page.url();
-          id = link.split('detail=item')[1];
           await page
             .waitForSelector('div.gameinfo-detail__title>button.btn-close', {
               timeout: 5000,
             })
             .catch(() => {
-              console.log('Selector not found within timeout');
+              logger.info('Detail panel not found within timeout');
             });
+          link = page.url();
+          // logger.info(`Item link: ${link}`);
+          id = link.split('detail=item')[1];
           const closeButton = await page.$(
             'div.gameinfo-detail__title>button.btn-close'
           );
           if (closeButton) {
             await closeButton.asLocator().click();
-            await page.waitForNavigation({ timeout: 5000 }).catch(() => {
-              console.error('Navigation timeout after clicking the button');
-            });
+            await page
+              .waitForSelector('div.gameinfo-detail__title>button.btn-close', {
+                hidden: true,
+                timeout: 5000,
+              })
+              .catch(() => {
+                logger.info('Detail panel did not close within timeout');
+              });
           }
         }
         item.set(name, { id, name, description, imageUrl, link, dropFrom: [] });
