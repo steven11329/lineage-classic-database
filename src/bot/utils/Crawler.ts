@@ -8,12 +8,14 @@ class Crawler {
   loadItemPages: number;
   loadItemRows: number;
 
-  constructor(options: Partial<{
-    loadMonsterPages: number,
-    loadItemPages: number,
-    loadMonsterRows: number,
-    loadItemRows: number,
-  }> = {}) {
+  constructor(
+    options: Partial<{
+      loadMonsterPages: number;
+      loadItemPages: number;
+      loadMonsterRows: number;
+      loadItemRows: number;
+    }> = {}
+  ) {
     this.loadMonsterPages = options.loadMonsterPages ?? 0;
     this.loadItemPages = options.loadItemPages ?? 0;
     this.loadMonsterRows = options.loadMonsterRows ?? 1;
@@ -23,7 +25,25 @@ class Crawler {
   async scrapingMonster(): Promise<Map<string, Monster>> {
     let id: string = '';
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/monster?page=';
-    const browser = await puppeteer.launch();
+    let browser;
+    const isArm = process.arch === 'arm' || process.arch === 'arm64';
+    const isWinOrMac = process.platform === 'win32' || process.platform === 'darwin';
+    if (isWinOrMac) {
+      browser = await puppeteer.launch();
+    } else if (isArm) {
+      browser = await puppeteer.launch({
+        // 關鍵：指向系統安裝的 Chromium
+        executablePath: '/usr/bin/chromium-browser',
+        // RPi 上通常需要這些參數來穩定運行
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+        ],
+      });
+    } else {
+      browser = await puppeteer.launch();
+    }
     const page = await browser.newPage();
     const monster: Map<string, Monster> = new Map();
 
