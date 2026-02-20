@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 import { Item, Monster } from '../../types';
 import logger from './logger';
 
@@ -27,23 +27,28 @@ class Crawler {
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/monster?page=';
     let browser;
     const isArm = process.arch === 'arm' || process.arch === 'arm64';
-    const isWinOrMac =
-      process.platform === 'win32' || process.platform === 'darwin';
-    if (isWinOrMac) {
-      browser = await puppeteer.launch();
+    const isWin = process.platform === 'win32' || process.platform === 'darwin';
+    const isMac = process.platform === 'darwin';
+    if (isWin) {
+      browser = await puppeteer.launch({
+        // Windows 的路徑請注意反斜線，或使用兩條反斜線轉義
+        executablePath:
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        headless: true, // 或 "new"
+      });
+    } else if (isMac) {
+      browser = await puppeteer.launch({
+        executablePath:
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        headless: true, // 或 "new"
+      });
     } else if (isArm) {
       browser = await puppeteer.launch({
-        // 關鍵：指向系統安裝的 Chromium
         executablePath: '/usr/bin/chromium-browser',
-        // RPi 上通常需要這些參數來穩定運行
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-        ],
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     } else {
-      browser = await puppeteer.launch();
+      throw new Error('Unsupported platform: ' + process.platform);
     }
     const page = await browser.newPage();
     const monster: Map<string, Monster> = new Map();
@@ -131,23 +136,28 @@ class Crawler {
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/item?page=';
     let browser;
     const isArm = process.arch === 'arm' || process.arch === 'arm64';
-    const isWinOrMac =
-      process.platform === 'win32' || process.platform === 'darwin';
-    if (isWinOrMac) {
-      browser = await puppeteer.launch();
+    const isWin = process.platform === 'win32' || process.platform === 'darwin';
+    const isMac = process.platform === 'darwin';
+    if (isWin) {
+      browser = await puppeteer.launch({
+        // Windows 的路徑請注意反斜線，或使用兩條反斜線轉義
+        executablePath:
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        headless: true, // 或 "new"
+      });
+    } else if (isMac) {
+      browser = await puppeteer.launch({
+        executablePath:
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        headless: true, // 或 "new"
+      });
     } else if (isArm) {
       browser = await puppeteer.launch({
-        // 關鍵：指向系統安裝的 Chromium
         executablePath: '/usr/bin/chromium-browser',
-        // RPi 上通常需要這些參數來穩定運行
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-        ],
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     } else {
-      browser = await puppeteer.launch();
+      throw new Error('Unsupported platform: ' + process.platform);
     }
     const page = await browser.newPage();
     const item: Map<string, Item> = new Map();

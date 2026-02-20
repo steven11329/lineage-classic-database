@@ -10,7 +10,7 @@ vi.mock('puppeteer', () => {
   };
 });
 
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 
 function createMockElement(overrides: Record<string, any> = {}) {
   return {
