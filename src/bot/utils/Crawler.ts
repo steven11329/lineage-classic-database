@@ -27,7 +27,8 @@ class Crawler {
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/monster?page=';
     let browser;
     const isArm = process.arch === 'arm' || process.arch === 'arm64';
-    const isWinOrMac = process.platform === 'win32' || process.platform === 'darwin';
+    const isWinOrMac =
+      process.platform === 'win32' || process.platform === 'darwin';
     if (isWinOrMac) {
       browser = await puppeteer.launch();
     } else if (isArm) {
@@ -128,7 +129,26 @@ class Crawler {
   async scrapingItem(): Promise<Map<string, Item>> {
     let id: string = '';
     const url = 'https://lineageclassic.plaync.com/zh-tw/info/item?page=';
-    const browser = await puppeteer.launch();
+    let browser;
+    const isArm = process.arch === 'arm' || process.arch === 'arm64';
+    const isWinOrMac =
+      process.platform === 'win32' || process.platform === 'darwin';
+    if (isWinOrMac) {
+      browser = await puppeteer.launch();
+    } else if (isArm) {
+      browser = await puppeteer.launch({
+        // 關鍵：指向系統安裝的 Chromium
+        executablePath: '/usr/bin/chromium-browser',
+        // RPi 上通常需要這些參數來穩定運行
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+        ],
+      });
+    } else {
+      browser = await puppeteer.launch();
+    }
     const page = await browser.newPage();
     const item: Map<string, Item> = new Map();
 
