@@ -34,9 +34,6 @@ export async function handleMessage(
     case 'queryMonster':
       await handleQueryMonster(message, db, command.query!);
       break;
-    case 'updateDatabase':
-      await handleUpdateDatabase(message);
-      break;
     default:
       // 未知的指令類型（理論上不會到這裡）
       logger.warn(`Unknown command type: ${command.type}`);

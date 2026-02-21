@@ -47,11 +47,6 @@ export function parseCommand(content: string): ParsedCommand | null {
     return { type: 'queryMonster', query };
   }
 
-  // // 更新資料庫（偵測 "更新資料庫" 關鍵字）
-  // if (trimmedContent === '更新資料庫' || trimmedContent.startsWith('更新資料庫 ')) {
-  //   return { type: 'updateDatabase' };
-  // }
-
   // 不是有效指令
   return null;
 }
