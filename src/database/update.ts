@@ -68,6 +68,7 @@ export async function updateDatabase(dbPath?: string): Promise<string> {
           FOREIGN KEY (monster_id) REFERENCES monster (id) ON UPDATE CASCADE ON DELETE CASCADE,
           FOREIGN KEY (item_id) REFERENCES item (id) ON UPDATE CASCADE ON DELETE CASCADE
         );
+        CREATE INDEX idx_monster_drops_item_id ON monster_drops(item_id, monster_id);
       `);
     }
 
@@ -103,57 +104,59 @@ export async function updateDatabase(dbPath?: string): Promise<string> {
       monster.dropItems = dropItemIds;
     }
 
-    // 插入物品資料
-    logger.info('寫入物品資料到資料庫...');
+    // 準備所有 INSERT statements
     const insertItem = db.prepare(`
       INSERT OR REPLACE INTO item (id, name, description, imageUrl, link)
       VALUES (@id, @name, @description, @imageUrl, @link)
     `);
 
-    for (const item of itemMap.values()) {
-      insertItem.run({
-        id: item.id,
-        name: item.name,
-        description: item.description ?? null,
-        imageUrl: item.imageUrl ?? null,
-        link: item.link ?? null,
-      });
-    }
-
-    // 插入怪物資料
-    logger.info('寫入怪物資料到資料庫...');
     const insertMonster = db.prepare(`
       INSERT OR REPLACE INTO monster (id, name, imageUrl, link)
       VALUES (@id, @name, @imageUrl, @link)
     `);
 
-    for (const monster of monsterMap.values()) {
-      insertMonster.run({
-        id: monster.id,
-        name: monster.name,
-        imageUrl: monster.imageUrl ?? null,
-        link: monster.link ?? null,
-      });
-    }
-
-    // 清空舊的掉落關聯（避免重複）
-    logger.info('更新掉落關聯資料...');
-    db.exec('DELETE FROM monster_drops');
-
-    // 插入怪物掉落資料
     const insertMonsterDrops = db.prepare(`
       INSERT OR REPLACE INTO monster_drops (monster_id, item_id)
       VALUES (@monster_id, @item_id)
     `);
 
-    for (const monster of monsterMap.values()) {
-      for (const itemId of monster.dropItems) {
-        insertMonsterDrops.run({
-          monster_id: monster.id,
-          item_id: itemId,
+    // 以單一 transaction 執行所有寫入，確保原子性並大幅提升效能
+    logger.info('寫入資料到資料庫...');
+    const writeAll = db.transaction(() => {
+      for (const item of itemMap.values()) {
+        insertItem.run({
+          id: item.id,
+          name: item.name,
+          description: item.description ?? null,
+          imageUrl: item.imageUrl ?? null,
+          link: item.link ?? null,
         });
       }
-    }
+      logger.info(`已寫入 ${itemMap.size} 個物品`);
+
+      for (const monster of monsterMap.values()) {
+        insertMonster.run({
+          id: monster.id,
+          name: monster.name,
+          imageUrl: monster.imageUrl ?? null,
+          link: monster.link ?? null,
+        });
+      }
+      logger.info(`已寫入 ${monsterMap.size} 個怪物`);
+
+      db.exec('DELETE FROM monster_drops');
+
+      for (const monster of monsterMap.values()) {
+        for (const itemId of monster.dropItems) {
+          insertMonsterDrops.run({
+            monster_id: monster.id,
+            item_id: itemId,
+          });
+        }
+      }
+    });
+
+    writeAll();
 
     db.close();
 
