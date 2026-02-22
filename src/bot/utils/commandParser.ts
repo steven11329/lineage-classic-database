@@ -1,7 +1,7 @@
 /**
  * 指令類型
  */
-export type CommandType = 'queryItem' | 'queryMonster' | 'updateDatabase';
+export type CommandType = 'queryItem' | 'queryMonster';
 
 /**
  * 解析後的指令

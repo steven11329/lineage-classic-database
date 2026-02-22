@@ -17,13 +17,14 @@ description: 協助製作 Discord Bot，提供查詢物品和怪物掉落資訊�
 ```
 \[十字弓\]\(<item_link>\) <item_image_url>
 掉落怪物:
-- 史巴托 <monster_link>
-- 史巴托 <monster_link> \(祝福的\)
-- 史巴托 <monster_link> \(詛咒的\)
+- 史巴托 <monster_link> Lv<monster_level>
+- 史巴托 <monster_link> Lv<monster_level> \(祝福的\)
+- 史巴托 <monster_link> Lv<monster_level> \(詛咒的\)
 ```
+怪物列表根據 <monster_level> 由低到高排序，並且同一怪物如果有不同的 isBlessed 或 isCursed 狀態，則分別列出。
 
 2. 使用者輸入 "@bot 查怪 史巴托"，你應該回應類似以下內容：
-```\[史巴托\]\(<monster_link>\) <monster_image_url>
+```\[史巴托\]\(<monster_link>\) Lv<monster_level> <monster_image_url>
 掉落物品:
 - 十字弓 <item_link>
 - 祝福的 十字弓 <item_link>

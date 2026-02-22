@@ -66,13 +66,19 @@ export default class Database {
       throw new Error('Database not initialized. Call initialize() first.');
     }
 
-    // Migration: drop monster_drops first if it is missing required columns
+    // Migration: drop monster_drops if columns are missing or PK doesn't include is_blessed/is_cursed
     if (existingTables.has('monster_drops')) {
       const columns = this._db
         .prepare('PRAGMA table_info(monster_drops)')
-        .all() as Array<{ name: string }>;
+        .all() as Array<{ name: string; pk: number }>;
       const columnNames = new Set(columns.map((c) => c.name));
-      if (!columnNames.has('is_blessed') || !columnNames.has('is_cursed')) {
+      const pkColumnNames = new Set(columns.filter((c) => c.pk > 0).map((c) => c.name));
+      if (
+        !columnNames.has('is_blessed') ||
+        !columnNames.has('is_cursed') ||
+        !pkColumnNames.has('is_blessed') ||
+        !pkColumnNames.has('is_cursed')
+      ) {
         this._db.exec('DROP TABLE IF EXISTS monster_drops');
         existingTables.delete('monster_drops');
       }
@@ -84,12 +90,17 @@ export default class Database {
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           imageUrl TEXT,
-          link TEXT
+          link TEXT,
+          level INTEGER
         );
         CREATE INDEX idx_monster_name ON monster(name);
+        CREATE INDEX idx_monster_level_name ON monster(level, name);
       `);
     } else {
-      this._db.exec(`CREATE INDEX IF NOT EXISTS idx_monster_name ON monster(name);`);
+      this._db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_monster_name ON monster(name);
+        CREATE INDEX IF NOT EXISTS idx_monster_level_name ON monster(level, name);
+      `);
     }
 
     if (!existingTables.has('item')) {
@@ -114,7 +125,7 @@ export default class Database {
           item_id TEXT,
           is_blessed INTEGER NOT NULL DEFAULT 0,
           is_cursed INTEGER NOT NULL DEFAULT 0,
-          PRIMARY KEY (monster_id, item_id),
+          PRIMARY KEY (monster_id, item_id, is_blessed, is_cursed),
           FOREIGN KEY (monster_id) REFERENCES monster (id) ON UPDATE CASCADE ON DELETE CASCADE,
           FOREIGN KEY (item_id) REFERENCES item (id) ON UPDATE CASCADE ON DELETE CASCADE
         );
@@ -151,7 +162,12 @@ export default class Database {
       INSERT OR REPLACE INTO monster_drops (monster_id, item_id, is_blessed, is_cursed)
       VALUES (@monster_id, @item_id, @is_blessed, @is_cursed)
     `);
-    stmt.run({ monster_id: monsterId, item_id: itemId, is_blessed: isBlessed ? 1 : 0, is_cursed: isCursed ? 1 : 0 });
+    stmt.run({
+      monster_id: monsterId,
+      item_id: itemId,
+      is_blessed: isBlessed ? 1 : 0,
+      is_cursed: isCursed ? 1 : 0,
+    });
   }
 
   /**
@@ -178,21 +194,22 @@ export default class Database {
   /**
    * UPSERT monster 資料一筆
    */
-  upsertMonster(
-    id: string,
-    name: string,
-    imageUrl: string,
-    link: string
-  ): void {
+  upsertMonster(info: {
+    id: string;
+    name: string;
+    imageUrl: string;
+    link: string;
+    level: number;
+  }): void {
     const db = this._db;
     if (!db) {
       throw new Error('Database not initialized. Call initialize() first.');
     }
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO monster (id, name, imageUrl, link)
-      VALUES (@id, @name, @imageUrl, @link)
+      INSERT OR REPLACE INTO monster (id, name, imageUrl, link, level)
+      VALUES (@id, @name, @imageUrl, @link, @level)
     `);
-    stmt.run({ id, name, imageUrl, link });
+    stmt.run(info);
   }
 
   /**
@@ -228,13 +245,14 @@ export default class Database {
         monster.name AS monster_name,
         monster.imageUrl AS monster_image_url,
         monster.link AS monster_link,
+        monster.level AS monster_level,
         monster_drops.is_blessed,
         monster_drops.is_cursed
       FROM item
       JOIN monster_drops ON item.id = monster_drops.item_id
       JOIN monster ON monster_drops.monster_id = monster.id
       WHERE item.name = ?
-      ORDER BY monster.name
+      ORDER BY monster.level ASC, monster.name ASC
       LIMIT 100
     `);
 
@@ -259,13 +277,14 @@ export default class Database {
         monster.name AS monster_name,
         monster.imageUrl AS monster_image_url,
         monster.link AS monster_link,
+        monster.level AS monster_level,
         monster_drops.is_blessed,
         monster_drops.is_cursed
       FROM item
       JOIN monster_drops ON item.id = monster_drops.item_id
       JOIN monster ON monster_drops.monster_id = monster.id
       WHERE item.name LIKE ?
-      ORDER BY item.name, monster.name
+      ORDER BY item.name ASC, monster.level ASC, monster.name ASC
       LIMIT 100
     `);
 
@@ -288,6 +307,7 @@ export default class Database {
         monster.name AS monster_name,
         monster.imageUrl AS monster_image_url,
         monster.link AS monster_link,
+        monster.level AS monster_level,
         item.name AS item_name,
         item.imageUrl AS item_image_url,
         item.link AS item_link,
@@ -298,7 +318,7 @@ export default class Database {
       JOIN monster_drops ON monster.id = monster_drops.monster_id
       JOIN item ON monster_drops.item_id = item.id
       WHERE monster.name = ?
-      ORDER BY monster.name, item.name
+      ORDER BY item.name ASC
       LIMIT 100
     `);
 
@@ -320,6 +340,7 @@ export default class Database {
         monster.name AS monster_name,
         monster.imageUrl AS monster_image_url,
         monster.link AS monster_link,
+        monster.level AS monster_level,
         item.name AS item_name,
         item.imageUrl AS item_image_url,
         item.link AS item_link,
@@ -330,7 +351,7 @@ export default class Database {
       JOIN monster_drops ON monster.id = monster_drops.monster_id
       JOIN item ON monster_drops.item_id = item.id
       WHERE monster.name LIKE ?
-      ORDER BY monster.name, item.name
+      ORDER BY monster.name ASC, item.name ASC
       LIMIT 100
     `);
 

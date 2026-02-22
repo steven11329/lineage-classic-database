@@ -7,14 +7,7 @@ import logger from './utils/logger';
 config();
 
 export default class DiscordBot {
-  private _db: Database;
-
-  constructor() {
-    this._db = new Database({
-      dbPath: process.env.DB_PATH || './dist/db/lineage-classic.db',
-      isReadOnly: true,
-    });
-  }
+  private _db: Database | null = null;
 
   /**
    * 啟動 Discord bot
@@ -36,6 +29,7 @@ export default class DiscordBot {
         dbPath: process.env.DB_PATH || './dist/db/lineage-classic.db',
         isReadOnly: true,
       });
+      this._db = db;
 
       // 初始化 Discord Client
       logger.info('🔧 初始化 Discord Client...');
@@ -62,7 +56,7 @@ export default class DiscordBot {
     // 處理 Ctrl+C (SIGINT)
     process.on('SIGINT', () => {
       logger.info('\n⚠️  收到 SIGINT 信號，正在關閉...');
-      this._db.close();
+      this._db?.close();
       logger.info('👋 Discord bot 已關閉');
       process.exit(0);
     });
@@ -70,7 +64,7 @@ export default class DiscordBot {
     // 處理 SIGTERM
     process.on('SIGTERM', () => {
       logger.info('\n⚠️  收到 SIGTERM 信號，正在關閉...');
-      this._db.close();
+      this._db?.close();
       logger.info('👋 Discord bot 已關閉');
       process.exit(0);
     });

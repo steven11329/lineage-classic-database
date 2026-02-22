@@ -37,6 +37,7 @@ export function buildItemDropEmbed(
       acc[result.item_name].monsters.push({
         name: result.monster_name,
         link: result.monster_link,
+        level: result.monster_level,
         isBlessed: result.is_blessed === 1,
         isCursed: result.is_cursed === 1,
       });
@@ -50,6 +51,7 @@ export function buildItemDropEmbed(
         monsters: Array<{
           name: string;
           link: string | null;
+          level: number | null;
           isBlessed: boolean;
           isCursed: boolean;
         }>;
@@ -79,10 +81,11 @@ export function buildItemDropEmbed(
 
     for (const monster of data.monsters) {
       // 查物視角：怪物掉落該物品，祝福/詛咒作後綴
+      const levelStr = monster.level != null ? ` Lv${monster.level}` : '';
       const suffix = monster.isBlessed ? ' (祝福的)' : monster.isCursed ? ' (詛咒的)' : '';
       const line = monster.link
-        ? `- [${monster.name}](${monster.link})${suffix}`
-        : `- ${monster.name}${suffix}`;
+        ? `- [${monster.name}](${monster.link})${levelStr}${suffix}`
+        : `- ${monster.name}${levelStr}${suffix}`;
 
       if (lines.join('\n').length + line.length + 1 > DESC_LIMIT) {
         truncated = true;
@@ -126,16 +129,20 @@ export function buildMonsterDropEmbed(
   }
 
   // 按怪物分組（支援模糊搜尋可能匹配多個怪物）
+  // 以 monster_link 作為唯一鍵（同名但不同 ID 的怪物會有不同連結）
   const groupedByMonster = results.reduce(
     (acc, result) => {
-      if (!acc[result.monster_name]) {
-        acc[result.monster_name] = {
+      const key = result.monster_link ?? `${result.monster_name}|${result.monster_level}`;
+      if (!acc[key]) {
+        acc[key] = {
+          name: result.monster_name,
           imageUrl: result.monster_image_url,
           link: result.monster_link,
+          level: result.monster_level,
           items: [],
         };
       }
-      acc[result.monster_name].items.push({
+      acc[key].items.push({
         name: result.item_name,
         link: result.item_link,
         isBlessed: result.is_blessed === 1,
@@ -146,8 +153,10 @@ export function buildMonsterDropEmbed(
     {} as Record<
       string,
       {
+        name: string;
         imageUrl: string | null;
         link: string | null;
+        level: number | null;
         items: Array<{
           name: string;
           link: string | null;
@@ -160,10 +169,11 @@ export function buildMonsterDropEmbed(
 
   const embeds: EmbedBuilder[] = [];
 
-  for (const [name, data] of Object.entries(groupedByMonster)) {
+  for (const [, data] of Object.entries(groupedByMonster)) {
+    const levelStr = data.level != null ? ` Lv${data.level}` : '';
     const embed = new EmbedBuilder()
       .setColor(0xff6b6b) // 紅色
-      .setTitle(`👹 ${name}`)
+      .setTitle(`👹 ${data.name}${levelStr}`)
       .setTimestamp();
 
     if (data.link) {

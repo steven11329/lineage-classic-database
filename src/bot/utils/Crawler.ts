@@ -88,6 +88,7 @@ class Crawler {
         let link: string = '';
         let isBlessed: boolean = false;
         let isCursed: boolean = false;
+        let level: number = 0;
 
         if (button) {
           name =
@@ -103,6 +104,13 @@ class Crawler {
                 node[0]?.evaluate((img) => img.getAttribute('src') ?? '') ?? ''
               );
             });
+          level = await row.$$('div.tablecell').then((node) => {
+            return node[3]?.evaluate((node) => {
+              const text = node.textContent?.trim() ?? '';
+              const value = parseInt(text.trim());
+              return isNaN(value) ? 0 : value;
+            });
+          });
           await button.asLocator().click();
           await page
             .waitForSelector('div.gameinfo-detail__title>button.btn-close', {
@@ -128,7 +136,13 @@ class Crawler {
             'li.drop-category.monster > div.value > p strong.link'
           );
 
-          this._db.upsertMonster(id, name, imageUrl, link);
+          this._db.upsertMonster({
+            id,
+            name,
+            imageUrl,
+            link,
+            level,
+          });
           await Promise.all(
             elements.map(async (el) => {
               let text = await el.evaluate(
