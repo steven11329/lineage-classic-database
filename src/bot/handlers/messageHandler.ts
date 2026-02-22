@@ -1,10 +1,9 @@
 import type { Message } from 'discord.js';
-import type Database from 'better-sqlite3';
 import { parseCommand } from '../utils/commandParser';
 import { handleQueryItem } from '../commands/queryItem';
 import { handleQueryMonster } from '../commands/queryMonster';
-import { handleUpdateDatabase } from '../commands/updateDatabase';
 import logger from '../utils/logger';
+import Database from '../utils/Database';
 
 /**
  * 處理 Discord 訊息事件
@@ -14,7 +13,7 @@ import logger from '../utils/logger';
  */
 export async function handleMessage(
   message: Message,
-  db: Database.Database
+  db: Database
 ): Promise<void> {
   const content = message.content.trim();
 

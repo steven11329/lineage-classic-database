@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
-import type Database from 'better-sqlite3';
 import { handleMessage } from './handlers/messageHandler';
 import logger from './utils/logger';
+import Database from './utils/Database';
 
 /**
  * 初始化並配置 Discord Client
@@ -9,7 +9,7 @@ import logger from './utils/logger';
  * @param db 資料庫實例
  * @returns 配置好的 Discord Client
  */
-export function initializeClient(db: Database.Database): Client {
+export function initializeClient(db: Database): Client {
   // 建立 Discord Client，設定需要的 Gateway Intents
   const client = new Client({
     intents: [

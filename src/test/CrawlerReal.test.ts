@@ -7,46 +7,16 @@ async function testCrawler(): Promise<boolean> {
     loadMonsterPages: 1,
     loadMonsterRows: 1,
     loadItemPages: 1,
-    loadItemRows: 1,
+    loadItemRows: 7,
   });
-  const itemMap = await crawler.scrapingItem();
-  const monsterMap = await crawler.scrapingMonster();
-  let result = true;
 
-  console.log(
-    `爬取完成，獲得 ${itemMap.size} 個物品和 ${monsterMap.size} 個怪物`
-  );
-  console.log(`其中一個物品的資料:`);
-  const firstItem = itemMap.values().next().value;
-  if (firstItem) {
-    console.log(`
-      ID: ${firstItem.id}
-      Name: ${firstItem.name}
-      Description: ${firstItem.description}
-      Image URL: ${firstItem.imageUrl}
-      Link: ${firstItem.link}
-      Drop From Monsters: ${firstItem.dropFrom.join(', ')}
-     `);
-    result && true;
-  } else {
-    result && false;
+  try {
+    await crawler.scraping();
+  } catch (error) {
+    return false;
   }
 
-  console.log(`其中一個怪物的資料:`);
-  const firstMonster = monsterMap.values().next().value;
-  if (firstMonster) {
-    console.log(`
-      ID: ${firstMonster.id}
-      Name: ${firstMonster.name}
-      Image URL: ${firstMonster.imageUrl}
-      Link: ${firstMonster.link}
-      Drop Items: ${firstMonster.dropItems.join(', ')}
-     `);
-    result && true;
-  } else {
-    result && false;
-  }
-  return result;
+  return true;
 }
 
 describe('Crawler', () => {

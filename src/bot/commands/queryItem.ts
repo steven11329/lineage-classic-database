@@ -1,11 +1,7 @@
 import type { Message } from 'discord.js';
-import type Database from 'better-sqlite3';
-import {
-  queryItemDropsExact,
-  queryItemDropsFuzzy,
-} from '../../database/queries';
 import { buildItemDropEmbed, buildErrorEmbed } from '../utils/embedBuilder';
 import logger from '../utils/logger';
+import Database from '../utils/Database';
 
 /**
  * 處理物品查詢指令
@@ -16,16 +12,16 @@ import logger from '../utils/logger';
  */
 export async function handleQueryItem(
   message: Message,
-  db: Database.Database,
+  db: Database,
   query: string
 ): Promise<void> {
   try {
     // 先嘗試完全匹配
-    let results = queryItemDropsExact(db, query);
+    let results = db.queryItemDropsExact(query);
 
     // 如果沒有結果，嘗試模糊搜尋
     if (results.length === 0) {
-      results = queryItemDropsFuzzy(db, query);
+      results = db.queryItemDropsFuzzy(query);
     }
 
     // 建立 Discord Embed 回應

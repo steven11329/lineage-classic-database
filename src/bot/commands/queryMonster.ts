@@ -1,11 +1,7 @@
 import type { Message } from 'discord.js';
-import type Database from 'better-sqlite3';
-import {
-  queryMonsterDropsExact,
-  queryMonsterDropsFuzzy,
-} from '../../database/queries';
 import { buildMonsterDropEmbed, buildErrorEmbed } from '../utils/embedBuilder';
 import logger from '../utils/logger';
+import Database from '../utils/Database';
 
 /**
  * 處理怪物查詢指令
@@ -16,16 +12,16 @@ import logger from '../utils/logger';
  */
 export async function handleQueryMonster(
   message: Message,
-  db: Database.Database,
+  db: Database,
   query: string
 ): Promise<void> {
   try {
     // 先嘗試完全匹配
-    let results = queryMonsterDropsExact(db, query);
+    let results = db.queryMonsterDropsExact(query);
 
     // 如果沒有結果，嘗試模糊搜尋
     if (results.length === 0) {
-      results = queryMonsterDropsFuzzy(db, query);
+      results = db.queryMonsterDropsFuzzy(query);
     }
 
     // 建立 Discord Embed 回應

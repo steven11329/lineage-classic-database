@@ -1,8 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
-import type {
-  ItemDropResult,
-  MonsterDropResult,
-} from '../../database/queries';
+import type { ItemDropResult, MonsterDropResult } from '../../types';
+
+const DESC_LIMIT = 4000; // Discord description 上限 4096，保留 buffer
 
 /**
  * 建立物品掉落查詢的 Discord Embed
@@ -15,7 +14,6 @@ export function buildItemDropEmbed(
   itemName: string,
   results: ItemDropResult[]
 ): EmbedBuilder[] {
-  // 無結果時顯示錯誤訊息
   if (results.length === 0) {
     return [
       new EmbedBuilder()
@@ -38,8 +36,9 @@ export function buildItemDropEmbed(
       }
       acc[result.item_name].monsters.push({
         name: result.monster_name,
-        imageUrl: result.monster_image_url,
         link: result.monster_link,
+        isBlessed: result.is_blessed === 1,
+        isCursed: result.is_cursed === 1,
       });
       return acc;
     },
@@ -50,8 +49,9 @@ export function buildItemDropEmbed(
         link: string | null;
         monsters: Array<{
           name: string;
-          imageUrl: string | null;
           link: string | null;
+          isBlessed: boolean;
+          isCursed: boolean;
         }>;
       }
     >
@@ -63,37 +63,38 @@ export function buildItemDropEmbed(
     const embed = new EmbedBuilder()
       .setColor(0x00ae86) // 綠色
       .setTitle(`📦 ${name}`)
-      .setDescription(`此物品可從以下怪物掉落：`)
       .setTimestamp();
 
-    // 如果有連結，設定為標題的超連結
     if (data.link) {
       embed.setURL(data.link);
     }
 
-    // 如果有圖片，設定為縮圖
     if (data.imageUrl) {
       embed.setThumbnail(data.imageUrl);
     }
 
-    // 添加怪物列表（Discord 每個 embed 最多 25 個 field）
-    const monstersToShow = data.monsters.slice(0, 25);
-    monstersToShow.forEach((monster, index) => {
-      const monsterInfo = monster.link
-        ? `[查看詳情](${monster.link})`
-        : '無連結';
-      embed.addFields({
-        name: `${index + 1}. ${monster.name}`,
-        value: monsterInfo,
-        inline: true,
-      });
-    });
+    // 建立掉落怪物條列清單
+    const lines: string[] = ['掉落怪物：'];
+    let truncated = false;
 
-    // 如果超過 25 個，顯示提示
-    if (data.monsters.length > 25) {
-      embed.setFooter({
-        text: `顯示前 25 個怪物，共 ${data.monsters.length} 個`,
-      });
+    for (const monster of data.monsters) {
+      // 查物視角：怪物掉落該物品，祝福/詛咒作後綴
+      const suffix = monster.isBlessed ? ' (祝福的)' : monster.isCursed ? ' (詛咒的)' : '';
+      const line = monster.link
+        ? `- [${monster.name}](${monster.link})${suffix}`
+        : `- ${monster.name}${suffix}`;
+
+      if (lines.join('\n').length + line.length + 1 > DESC_LIMIT) {
+        truncated = true;
+        break;
+      }
+      lines.push(line);
+    }
+
+    embed.setDescription(lines.join('\n'));
+
+    if (truncated) {
+      embed.setFooter({ text: `僅顯示部分結果，共 ${data.monsters.length} 個怪物` });
     }
 
     embeds.push(embed);
@@ -114,7 +115,6 @@ export function buildMonsterDropEmbed(
   monsterName: string,
   results: MonsterDropResult[]
 ): EmbedBuilder[] {
-  // 無結果時顯示錯誤訊息
   if (results.length === 0) {
     return [
       new EmbedBuilder()
@@ -137,9 +137,9 @@ export function buildMonsterDropEmbed(
       }
       acc[result.monster_name].items.push({
         name: result.item_name,
-        imageUrl: result.item_image_url,
         link: result.item_link,
-        description: result.item_description,
+        isBlessed: result.is_blessed === 1,
+        isCursed: result.is_cursed === 1,
       });
       return acc;
     },
@@ -150,9 +150,9 @@ export function buildMonsterDropEmbed(
         link: string | null;
         items: Array<{
           name: string;
-          imageUrl: string | null;
           link: string | null;
-          description: string | null;
+          isBlessed: boolean;
+          isCursed: boolean;
         }>;
       }
     >
@@ -164,38 +164,38 @@ export function buildMonsterDropEmbed(
     const embed = new EmbedBuilder()
       .setColor(0xff6b6b) // 紅色
       .setTitle(`👹 ${name}`)
-      .setDescription(`此怪物會掉落以下物品：`)
       .setTimestamp();
 
-    // 如果有連結，設定為標題的超連結
     if (data.link) {
       embed.setURL(data.link);
     }
 
-    // 如果有圖片，設定為縮圖
     if (data.imageUrl) {
       embed.setThumbnail(data.imageUrl);
     }
 
-    // 添加物品列表（Discord 每個 embed 最多 25 個 field）
-    const itemsToShow = data.items.slice(0, 25);
-    itemsToShow.forEach((item, index) => {
-      const itemInfo = item.link ? `[查看詳情](${item.link})` : '無連結';
-      const description = item.description
-        ? `\n${item.description.substring(0, 50)}${item.description.length > 50 ? '...' : ''}`
-        : '';
-      embed.addFields({
-        name: `${index + 1}. ${item.name}`,
-        value: `${itemInfo}${description}`,
-        inline: true,
-      });
-    });
+    // 建立掉落物品條列清單
+    const lines: string[] = ['掉落物品：'];
+    let truncated = false;
 
-    // 如果超過 25 個，顯示提示
-    if (data.items.length > 25) {
-      embed.setFooter({
-        text: `顯示前 25 個物品，共 ${data.items.length} 個`,
-      });
+    for (const item of data.items) {
+      // 查怪視角：怪物掉落的物品，祝福/詛咒作前綴
+      const prefix = item.isBlessed ? '祝福的 ' : item.isCursed ? '詛咒的 ' : '';
+      const line = item.link
+        ? `- ${prefix}[${item.name}](${item.link})`
+        : `- ${prefix}${item.name}`;
+
+      if (lines.join('\n').length + line.length + 1 > DESC_LIMIT) {
+        truncated = true;
+        break;
+      }
+      lines.push(line);
+    }
+
+    embed.setDescription(lines.join('\n'));
+
+    if (truncated) {
+      embed.setFooter({ text: `僅顯示部分結果，共 ${data.items.length} 個物品` });
     }
 
     embeds.push(embed);
